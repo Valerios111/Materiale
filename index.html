@@ -1,127 +1,78 @@
 <!DOCTYPE html>
-
 <html lang="it">
-
 <head>
-
     <meta charset="UTF-8">
-
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <title>Ricerca Materiali</title>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <style>
-
         body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
-
         input, button { margin: 10px; padding: 10px; }
-
         #output { margin-top: 20px; font-weight: bold; }
-
     </style>
-
 </head>
-
 <body>
 
     <h2>Ricerca Materiali</h2>
-
     <input type="text" id="searchValue" placeholder="Inserisci il codice fornitore">
-
     <button onclick="searchExcel()">Cerca</button>
-
     
-
     <div id="output"></div>
 
     <script>
-
         let excelData = [];
-
         let colF = ""; // Nome corretto della colonna F
 
-        async function loadExcel() {
-
-            const fileUrl = "https://github.com/Valerios111/Materiale/raw/main/materiali%20donati.xlsx"; // Link diretto al file su GitHub
+        async function loadGoogleSheet() {
+            const fileUrl = "https://docs.google.com/spreadsheets/d/1HHXkTqerqprNTVCOOAhskVsoXSynt1B-/gviz/tq?tqx=out:csv";
 
             try {
-
                 const response = await fetch(fileUrl);
+                const csvText = await response.text();
 
-                const arrayBuffer = await response.arrayBuffer();
+                // Converte il CSV in un array di oggetti
+                const parsedData = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+                excelData = parsedData.data;
 
-                const workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
-
-                const sheetName = workbook.SheetNames[0];
-
-                const sheet = workbook.Sheets[sheetName];
-
-                excelData = XLSX.utils.sheet_to_json(sheet);
-
-                // Troviamo il nome corretto della colonna F
-
-                const firstRowKeys = Object.keys(excelData[0]);
-
-                colF = firstRowKeys.find(key => key.toLowerCase().includes("codice materiale del fornitore"));
+                // Troviamo il nome corretto della colonna F (ignora spazi extra e maiuscole/minuscole)
+                const firstRowKeys = Object.keys(excelData[0]).map(key => key.trim().toLowerCase());
+                colF = Object.keys(excelData[0]).find((key, index) => firstRowKeys[index].includes("codice materiale del fornitore"));
 
                 if (!colF) {
-
                     document.getElementById('output').innerHTML = "Errore: colonna F non trovata.";
-
+                } else {
+                    console.log("Dati caricati con successo:", excelData);
                 }
-
             } catch (error) {
-
                 document.getElementById('output').innerHTML = "Errore nel caricamento del file.";
-
                 console.error("Errore nel caricamento:", error);
-
             }
-
         }
 
         function searchExcel() {
-
-            const searchValue = document.getElementById('searchValue').value.trim();
-
+            const searchValue = document.getElementById('searchValue').value.trim().toLowerCase(); // Converte input in minuscolo
             const outputDiv = document.getElementById('output');
-
             outputDiv.innerHTML = "";
 
             if (excelData.length === 0 || !colF) {
-
                 outputDiv.innerHTML = "Errore: dati non caricati.";
-
                 return;
-
             }
 
             const result = excelData.find(row => 
-
-                row[colF] && row[colF].toString().trim() === searchValue
-
+                row[colF] && row[colF].toString().trim().toLowerCase() === searchValue // Confronta senza distinzione di maiuscole/minuscole
             );
 
             if (result) {
-
-                outputDiv.innerHTML = `Descrizione: ${result["Descrizione materiale"]} <br> Codice Materiale: ${result["Codice materiale"]}`;
-
+                outputDiv.innerHTML = `Descrizione: ${result["Descrizione materiale"] || "N/A"} <br> Codice Materiale: ${result["Codice materiale"] || "N/A"}`;
             } else {
-
                 outputDiv.innerHTML = "Nessun risultato trovato.";
-
             }
-
         }
 
         // Carica il file automaticamente all'avvio
-
-        loadExcel();
-
+        loadGoogleSheet();
     </script>
 
 </body>
-
 </html>
